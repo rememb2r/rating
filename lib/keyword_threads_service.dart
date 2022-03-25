@@ -46,6 +46,24 @@ class KeywordThreadsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void createPosting(String contents, String motherId, double rating) async {
+    // bucket 만들기
+    await postingsCollection.add({
+      'contents': contents,
+      'motherId': motherId,
+      'pRating': rating,
+      'createTime': DateTime.now().toString(),
+      'pid': DateTime.now().toString(),
+      'nHate': 0,
+      'nLike': 0,
+      'nReport': 0,
+      'IP': '165.213.*.*',
+      'location': '경기도 화성시, 대한민국',
+      'title': ' ',
+    });
+    notifyListeners();
+  }
+
   void preProcessing(String inputSearch) async {
     // bucket 만들기
     QuerySnapshot midResult = await search(inputSearch);
