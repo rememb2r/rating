@@ -1,11 +1,11 @@
-import 'dart:developer';
+// ignore_for_file: unnecessary_string_escapes, unnecessary_import
+
 import 'dart:math';
 
 import 'package:bucket_list_with_firebase/auth_service.dart';
 import 'package:bucket_list_with_firebase/bucket_service.dart';
 import 'package:bucket_list_with_firebase/keyword_threads_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -32,13 +32,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.read<AuthService>().currentUser();
     return MaterialApp(
       initialRoute: '/',
       theme: ThemeData(backgroundColor: Colors.black),
       debugShowCheckedModeBanner: false,
       routes: {
-        '/': (context) => LoginPage(),
+        '/': (context) => MainSearchPage(),
         '/second': (context) => HomePage(),
         '/write': (context) => WritePage(),
         '/create': (context) => WriteWithCreatePage(),
@@ -47,6 +46,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// 게시판 생성
 class WriteWithCreatePage extends StatefulWidget {
   const WriteWithCreatePage({Key? key}) : super(key: key);
 
@@ -77,7 +77,7 @@ class _WriteWithCreatePageState extends State<WriteWithCreatePage> {
       return Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
-          title: Text(passArgs.title + '  생성 및 첫 평가 남기기'),
+          title: Text(passArgs.title + '  생성'),
           backgroundColor: Color.fromARGB(255, 54, 136, 43),
           actions: [
             TextButton(
@@ -94,9 +94,11 @@ class _WriteWithCreatePageState extends State<WriteWithCreatePage> {
                   // double rating =
                   // randomNumber / 20; // 현재 미구현 기능으로 난수를 별점으로 넣어준다.
                   strId = strId + randomNumber.toString();
-                  keywordThreadsService.create(passArgs.title, strId, nRating);
-                  keywordThreadsService.createPosting(
-                      textController.text, strId, nRating);
+                  keywordThreadsService.create(
+                      passArgs.title, strId, nRating, textController.text);
+                  // keywordThreadsService.createPosting(
+                  // textController.text, strId, nRating,
+                  // firstPosting: true);
                   Navigator.pop(context);
                 }
               },
@@ -124,7 +126,6 @@ class _WriteWithCreatePageState extends State<WriteWithCreatePage> {
                       color: Colors.amber,
                     ),
                     onRatingUpdate: (rating) {
-                      print(rating);
                       setState(() {
                         nRating = rating;
                       });
@@ -205,6 +206,7 @@ class _WritePageState extends State<WritePage> {
                   // randomNumber / 20; // 현재 미구현 기능으로 난수를 별점으로 넣어준다.
                   keywordThreadsService.createPosting(
                       textController.text, passArgs.kid, nRating);
+
                   Navigator.pop(context);
                 }
               },
@@ -232,7 +234,6 @@ class _WritePageState extends State<WritePage> {
                       color: Colors.amber,
                     ),
                     onRatingUpdate: (rating) {
-                      print(rating);
                       setState(() {
                         nRating = rating;
                       });
@@ -268,14 +269,14 @@ class _WritePageState extends State<WritePage> {
 
 /// 로그인 페이지
 ///
-class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+class MainSearchPage extends StatefulWidget {
+  const MainSearchPage({Key? key}) : super(key: key);
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<MainSearchPage> createState() => _MainSearchPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _MainSearchPageState extends State<MainSearchPage> {
   TextEditingController searchTextController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
 
@@ -286,8 +287,50 @@ class _LoginPageState extends State<LoginPage> {
         //User? user = authService.currentUser();
 
         return Scaffold(
-          appBar: AppBar(
-              title: Text("따봉 - 모든 평가를 검색"), backgroundColor: Colors.black),
+          floatingActionButton: FloatingActionButton(
+            child: Icon(Icons.add_to_drive_outlined),
+            onPressed: () {
+              showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text("타이틀"),
+                      content: Text("작성하시겠습니까?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: Text("Cancel"),
+                        ),
+                        TextButton(
+                          child: Text("OK"),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  actions: [
+                                    TextButton(
+                                      child: Text("Real OK"),
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  });
+            },
+          ),
+          appBar:
+              AppBar(title: Text(" 실시간 핫 키워드"), backgroundColor: Colors.black),
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -336,7 +379,6 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(16.0)),
                   ),
                   onChanged: (text) {
-                    print(text.length);
                     //keywordThreadsService.preProcessing(text);  디버깅 용
                     keywordThreadsService.search(text);
                   },
@@ -390,9 +432,13 @@ class _LoginPageState extends State<LoginPage> {
                         keywordThreadsService.search(searchTextController.text),
                     builder: (context, snapshot) {
                       final documents = snapshot.data?.docs ?? [];
-                      if (documents.isEmpty) {
-                        print("nodata");
+                      documents.sort((b, a) {
+                        var alastUpdatedTime = a.get("lastUpdatedTime");
+                        var blastUpdatedTime = b.get("lastUpdatedTime");
+                        return alastUpdatedTime.compareTo(blastUpdatedTime);
+                      });
 
+                      if (documents.isEmpty) {
                         if (searchTextController.text.isEmpty) {
                           return Text('');
                         } else {
@@ -428,9 +474,7 @@ class _LoginPageState extends State<LoginPage> {
                             ],
                           );
                         }
-                      } else {
-                        print("yesdata");
-                      }
+                      } else {}
                       return ListView.builder(
                         itemCount: documents.length,
                         itemBuilder: (context, index) {
@@ -438,69 +482,180 @@ class _LoginPageState extends State<LoginPage> {
                           String title = doc.get("title");
                           double rate = doc.get("rating");
                           String kid = doc.get("kid");
-                          print(rate);
+
                           // bool isDone = doc.get("isDone");
-                          return ListTile(
-                            title: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    SizedBox(width: 10),
-                                    Text(
-                                      title,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    SizedBox(width: 8),
-                                    Icon(Icons.grade,
-                                        color: Colors.yellow[800]),
-                                    (rate >= 1.5)
-                                        ? Icon(Icons.grade,
-                                            color: Colors.yellow[800])
-                                        : Text(''),
-                                    (rate >= 2.5)
-                                        ? Icon(Icons.grade,
-                                            color: Colors.yellow[800])
-                                        : Text(''),
-                                    (rate >= 3.5)
-                                        ? Icon(Icons.grade,
-                                            color: Colors.yellow[800])
-                                        : Text(''),
-                                    (rate >= 4.5)
-                                        ? Icon(Icons.grade,
-                                            color: Colors.yellow[800])
-                                        : Text(''),
-                                    Text(' ' + rate.toString()),
-                                  ],
-                                ),
-                              ],
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              border: Border.all(
+                                color: Color.fromARGB(99, 185, 184, 184),
+                              ),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(15),
+                              ),
                             ),
-                            // 이동 아이콘 버튼
-                            trailing: IconButton(
-                              icon:
-                                  Icon(CupertinoIcons.arrow_right_circle_fill),
-                              onPressed: () {
+                            margin: EdgeInsets.only(
+                                left: 20.0, right: 20.0, bottom: 8.0),
+                            child: ListTile(
+                              title: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    height: 8.0,
+                                  ),
+                                  Row(
+                                    children: [
+                                      SizedBox(width: 3),
+                                      SizedBox(
+                                        width: 185,
+                                        child: Text(
+                                          title,
+                                          overflow: TextOverflow.fade,
+                                          style: TextStyle(
+                                            fontSize:
+                                                title.length < 10 ? 16 : 13,
+                                          ),
+                                        ),
+                                      ),
+                                      Spacer(),
+                                      // SizedBox(width: 8),
+                                      Icon(Icons.grade,
+                                          color: Colors.yellow[800]),
+                                      (rate >= 1.5)
+                                          ? Icon(Icons.grade,
+                                              color: Colors.yellow[800])
+                                          : Text(''),
+                                      (rate >= 2.5)
+                                          ? Icon(Icons.grade,
+                                              color: Colors.yellow[800])
+                                          : Text(''),
+                                      (rate >= 3.5)
+                                          ? Icon(Icons.grade,
+                                              color: Colors.yellow[800])
+                                          : Text(''),
+                                      (rate >= 4.5)
+                                          ? Icon(Icons.grade,
+                                              color: Colors.yellow[800])
+                                          : Text(''),
+                                      Text(' ' + rate.toStringAsFixed(2)),
+                                    ],
+                                  ),
+                                  SizedBox(height: 4),
+                                  FutureBuilder<QuerySnapshot>(
+                                      future: keywordThreadsService
+                                          .getContentsById(kid),
+                                      builder: (context, snapshot) {
+                                        final documents =
+                                            snapshot.data?.docs ?? [];
+                                        documents.sort((b, a) {
+                                          var aCreateTime = a.get("createTime");
+                                          var bCreateTime = b.get("createTime");
+                                          return aCreateTime
+                                              .compareTo(bCreateTime);
+                                        });
+
+                                        if (documents.isEmpty) {
+                                          return Text('');
+                                        }
+                                        if (documents.length == 1) {
+                                          final doc = documents[0];
+                                          String strFromDoc =
+                                              doc.get('contents');
+                                          strFromDoc =
+                                              strFromDoc.replaceAll('\n', '');
+                                          // if (strFromDoc[
+                                          //         strFromDoc.length - 1] ==
+                                          //     '\n') {
+                                          //   strFromDoc = strFromDoc.substring(
+                                          //       0, strFromDoc.length - 1);
+                                          // }
+
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                                left: 4.0),
+                                            child: Text(
+                                                '\"' + strFromDoc + '\"',
+                                                style: TextStyle(
+                                                  fontStyle: FontStyle.italic,
+                                                  color: Colors.grey[600],
+                                                  fontSize: 10.0,
+                                                )),
+                                          );
+                                        } else {
+                                          final doc = documents[0];
+                                          final doc2 = documents[1];
+                                          String strFromDoc =
+                                              doc.get('contents');
+                                          String strFromDoc2 =
+                                              doc2.get('contents');
+                                          strFromDoc =
+                                              strFromDoc.replaceAll('\n', ' ');
+                                          strFromDoc2 =
+                                              strFromDoc2.replaceAll('\n', ' ');
+
+                                          // if (strFromDoc[
+                                          //         strFromDoc.length - 1] ==
+                                          //     '\n') {
+                                          //   strFromDoc = strFromDoc.substring(
+                                          //       0, strFromDoc.length - 1);
+                                          // }
+                                          // if (strFromDoc2[
+                                          //         strFromDoc2.length - 1] ==
+                                          //     '\n') {
+                                          //   strFromDoc2 = strFromDoc2.substring(
+                                          //       0, strFromDoc2.length - 1);
+                                          // }
+
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                                left: 4.0),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text('\"' + strFromDoc + '\"',
+                                                    style: TextStyle(
+                                                      fontStyle:
+                                                          FontStyle.italic,
+                                                      color: Colors.grey[600],
+                                                      fontSize: 10,
+                                                    )),
+                                                Text('\"' + strFromDoc2 + '\"',
+                                                    style: TextStyle(
+                                                      fontStyle:
+                                                          FontStyle.italic,
+                                                      color: Colors.grey[600],
+                                                      fontSize: 10,
+                                                    )),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                      }),
+                                  SizedBox(
+                                    height: 8,
+                                  ),
+                                ],
+                              ),
+                              // 이동 아이콘 버튼
+                              // trailing: IconButton(
+                              //   icon: Icon(
+                              //       CupertinoIcons.arrow_right_circle_fill),
+                              //   onPressed: () {
+                              //     Navigator.pushNamed(context, '/second',
+                              //         arguments: PassArgs(kid, title, rate));
+
+                              //     //  bucketService.show(doc.id);
+                              //   },
+                              // ),
+                              onTap: () {
                                 Navigator.pushNamed(context, '/second',
                                     arguments: PassArgs(kid, title, rate));
 
-                                /*Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => HomePage()),
-                                );*/
-
-                                //  bucketService.show(doc.id);
+                                // 아이템 클릭하여 isDone 업데이트
+                                //bucketService.update(doc.id, !isDone);
                               },
                             ),
-                            onTap: () {
-                              // 아이템 클릭하여 isDone 업데이트
-                              //bucketService.update(doc.id, !isDone);
-                            },
                           );
                         },
                       );
@@ -562,7 +717,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   onPressed: () {
-                    print("sign out");
                     // 로그인 페이지로 이동
                     // 로그아웃
                     //    context.read<AuthService>().signOut();
@@ -600,7 +754,6 @@ class _HomePageState extends State<HomePage> {
                         onPressed: () {
                           // create bucket
                           if (jobController.text.isNotEmpty) {
-                            print("create bucket");
                             //bucketService.create(jobController.text, user.uid);
                           }
                         },
@@ -611,29 +764,45 @@ class _HomePageState extends State<HomePage> {
               ),
               Divider(height: 1),
               SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(Icons.grade, size: 40.0, color: Colors.yellow[800]),
-                  (passArgs.rating >= 1.5)
-                      ? Icon(Icons.grade, size: 40.0, color: Colors.yellow[800])
-                      : Text(''),
-                  (passArgs.rating >= 2.5)
-                      ? Icon(Icons.grade, size: 40.0, color: Colors.yellow[800])
-                      : Text(''),
-                  (passArgs.rating >= 3.5)
-                      ? Icon(Icons.grade, size: 40.0, color: Colors.yellow[800])
-                      : Text(''),
-                  (passArgs.rating >= 4.5)
-                      ? Icon(Icons.grade, size: 40.0, color: Colors.yellow[800])
-                      : Text(''),
-                  Text(
-                    ' ' + passArgs.rating.toString(),
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-                ],
+
+              FutureBuilder<double>(
+                future: keywordThreadsService.getRating(passArgs.kid),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData == false) return Text("Has no Data");
+                  final rating = snapshot.data ?? 0.0;
+                  return Row(
+                    children: [
+                      SizedBox(
+                        width: 10.0,
+                      ),
+                      Icon(Icons.grade, size: 40.0, color: Colors.yellow[800]),
+                      (rating >= 1.5)
+                          ? Icon(Icons.grade,
+                              size: 40.0, color: Colors.yellow[800])
+                          : Text(''),
+                      (rating >= 2.5)
+                          ? Icon(Icons.grade,
+                              size: 40.0, color: Colors.yellow[800])
+                          : Text(''),
+                      (rating >= 3.5)
+                          ? Icon(Icons.grade,
+                              size: 40.0, color: Colors.yellow[800])
+                          : Text(''),
+                      (rating >= 4.5)
+                          ? Icon(Icons.grade,
+                              size: 40.0, color: Colors.yellow[800])
+                          : Text(''),
+                      Text(
+                        ' ' + rating.toStringAsFixed(2),
+                        style: TextStyle(
+                          fontSize: 30,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
+
               SizedBox(height: 10),
 
               /// 리스트
@@ -647,6 +816,12 @@ class _HomePageState extends State<HomePage> {
                       if (documents.isEmpty) {
                         return Center(child: Text("작성된 글이 없습니다."));
                       }
+                      documents.sort((b, a) {
+                        var aCreateTime = a.get("createTime");
+                        var bCreateTime = b.get("createTime");
+                        return aCreateTime.compareTo(bCreateTime);
+                      });
+
                       return ListView.builder(
                         itemCount: documents.length,
                         itemBuilder: (context, index) {
@@ -655,6 +830,10 @@ class _HomePageState extends State<HomePage> {
                           String loc = doc.get("location");
                           String ip = doc.get("IP");
                           double rating = doc.get("pRating");
+                          if (job[job.length - 1] == '\n') {
+                            job = job.substring(0, job.length - 1);
+                          }
+
                           return ListTile(
                             title: Column(
                               children: [
@@ -689,7 +868,7 @@ class _HomePageState extends State<HomePage> {
                                         )),
                                   ],
                                 ),
-
+                                // 게시판 안에 본문 글
                                 Row(
                                   children: [
                                     SizedBox(
