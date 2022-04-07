@@ -507,7 +507,7 @@ class _MainSearchPageState extends State<MainSearchPage> {
                                     children: [
                                       SizedBox(width: 3),
                                       SizedBox(
-                                        width: 185,
+                                        width: 142,
                                         child: Text(
                                           title,
                                           overflow: TextOverflow.fade,
@@ -872,7 +872,7 @@ class _HomePageState extends State<HomePage> {
                                 Row(
                                   children: [
                                     SizedBox(
-                                      width: 378,
+                                      width: 360,
                                       child: Text(
                                         job,
                                         overflow: TextOverflow.ellipsis,
